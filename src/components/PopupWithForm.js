@@ -5,10 +5,9 @@ function PopupWithForm({
    textButton,
    isOpen,
    onClose,
-   onCloseByOverlay,
 }) {
     return (
-        <div className={`popup popup_type_${name}` + (isOpen && ' popup_opened')} onClick={onCloseByOverlay}>
+        <div className={`popup popup_type_${name}` + (isOpen && ' popup_opened')}>
             <div className='popup__container'>
                 <h2 className={`popup__title ${name === 'deletion' ? 'popup__title_confirm' : ''}`}>
                     {title}
