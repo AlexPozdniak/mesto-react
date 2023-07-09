@@ -5,15 +5,15 @@ function PopupWithForm({
    textButton,
    isOpen,
    onClose,
-   onCloseByOverlay,
+   onSubmit
 }) {
     return (
-        <div className={`popup popup_type_${name}` + (isOpen && ' popup_opened')} onClick={onCloseByOverlay}>
+        <div className={`popup popup_type_${name}` + (isOpen && ' popup_opened')}>
             <div className='popup__container'>
                 <h2 className={`popup__title ${name === 'deletion' ? 'popup__title_confirm' : ''}`}>
                     {title}
                 </h2>
-                <form className="popup__form" name={name + '-form'} noValidate>
+                <form className="popup__form" name={name + '-form'} onSubmit={onSubmit} noValidate>
                     {children}
                     <button className="popup__button popup__save-button" type="submit" aria-label={textButton}>
                         {textButton}
