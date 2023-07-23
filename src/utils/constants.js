@@ -12,6 +12,7 @@ const API_CONFIG = {
   token: 'e253ca36-1fab-496f-8fe5-7eb3f8a75878',
   group: 'cohort-68',
   url: 'https://mesto.nomoreparties.co/v1/',
+  authUrl: 'https://auth.nomoreparties.co',
 }
 
 export { config, API_CONFIG }

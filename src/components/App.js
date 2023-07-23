@@ -1,15 +1,65 @@
 import Header from "./Header";
 import Main from "./Main";
 import Footer from "./Footer";
-import {useState} from "react";
-import PopupWithForm from "./PopupWithForm";
+import {useCallback, useEffect, useState} from "react";
 import ImagePopup from "./ImagePopup";
+import {CurrentUserContext} from "../contexts/CurrentUserContext"
+import api from "../utils/api";
+import EditProfilePopup from "./EditProfilePopup";
+import EditAvatarPopup from "./EditAvatarPopup";
+import AddPlacePopup from "./AddPlacePopup";
+import {Navigate, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {ProtectedRoute} from "./ProtectedRoute";
+import Login from "./Login";
+import Register from "./Register";
+import InfoTooltip from "./InfoTooltip";
 
 function App() {
   const [isEditProfilePopupOpen, setIsEditProfilePopupOpen] = useState(false);
   const [isAddPlacePopupOpen, setIsAddPlacePopupOpen] = useState(false);
   const [isEditAvatarPopupOpen, setIsEditAvatarPopupOpen] = useState(false);
+  const [isInfoToolTipOpen, setInfoToolTipOpen] = useState(false);
+
   const [selectedCard, setSelectedCard] = useState(null);
+  const [currentUser, setCurrentUser] = useState({});
+  const [cards, setCards] = useState([]);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSuccessful, setIsSuccessful] = useState(false);
+  const [email, setEmail] = useState('');
+
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+    const checkActiveToken = useCallback(() => {
+        const jwt = localStorage.getItem('jwt');
+        if (jwt) {
+            api
+                .checkToken(jwt)
+                .then((res) => {
+                    if (res) {
+                        setIsLoggedIn(true);
+                        setEmail(res.data.email);
+                        navigate("/", { replace: true });
+                    }
+                })
+                .catch((err) => {
+                    setIsLoggedIn(false);
+                    console.log(err);
+                });
+        }
+    }, [navigate])
+
+  useEffect(() => {
+    api.getData()
+        .then(([user, cards])  => {
+            setCards(cards);
+            setCurrentUser(user);
+        })
+        .catch((err) => console.log(err));
+
+    checkActiveToken();
+  }, [checkActiveToken]);
 
   function handleEditAvatarClick() {
     setIsEditAvatarPopupOpen(true);
@@ -27,6 +77,8 @@ function App() {
       setIsEditAvatarPopupOpen(false);
       setIsAddPlacePopupOpen(false);
       setIsEditProfilePopupOpen(false);
+      setInfoToolTipOpen(false);
+
       setSelectedCard(null);
   }
 
@@ -34,102 +86,170 @@ function App() {
       setSelectedCard(card);
   }
 
+  function handleCardLike(cardId, isLiked) {
+      api.changeLikeCardStatus(cardId, isLiked)
+          .then(newCard => {
+            setCards(state => state.map(stateCard => stateCard._id === cardId ? newCard : stateCard));
+          })
+          .catch((err) => console.log(err));
+  }
+
+  function handleUpdateUser(user) {
+      api.patchUserInfo(user)
+          .then(res => {
+            setCurrentUser(res);
+            closeAllPopups();
+          })
+          .catch((err) => console.log(err));
+  }
+
+  function handleUpdateAvatar(avatar) {
+      api.setUserAvatar(avatar)
+          .then(res => {
+              setCurrentUser(res);
+              closeAllPopups();
+          })
+          .catch((err) => console.log(err));
+  }
+
+  function handleAddCard(data) {
+      api.createCard(data)
+          .then(newCard => {
+              setCards([newCard, ...cards]);
+              closeAllPopups();
+          })
+          .catch((err) => console.log(err));
+  }
+
+  function handleDeleteCard(id) {
+      api.deleteCard(id)
+          .then(() => {
+              const newCards = cards.filter(card => card._id !== id);
+              setCards(newCards);
+          })
+          .catch((err) => console.log(err));
+  }
+
+    function handleRegistration(password, email) {
+        if (!password || !email) {
+            return;
+        }
+        api
+            .authorize(password, email, false)
+            .then(() => {
+                setIsSuccessful(true);
+            })
+            .catch((err) => {
+                setIsSuccessful(false);
+                console.log(err);
+            })
+            .finally(() => {
+                setInfoToolTipOpen(true);
+            });
+    }
+
+    function handleLogin(password, email) {
+        if (!password || !email) {
+            return;
+        }
+        api
+            .authorize(password, email)
+            .then((res) => {
+                setIsLoggedIn(true);
+                localStorage.setItem('jwt', res.token);
+                setEmail(email);
+                navigate('/', { replace: true });
+            })
+            .catch((err) => {
+                console.log(err);
+                setIsLoggedIn(false);
+                setInfoToolTipOpen(true);
+                setIsSuccessful(false);
+            });
+    }
+
+    function handleSignOut() {
+        setIsLoggedIn(false);
+        localStorage.removeItem('jwt');
+        setEmail('');
+        navigate('/signin', { replace: true });
+    }
+
   return (
-    <div className="page__container">
-      <Header />
-      <Main
-            handleEditAvatarClick={handleEditAvatarClick}
-            handleAddPlaceClick={handleAddPlaceClick}
-            handleEditProfileClick={handleEditProfileClick}
-            onCardClick={handleCardClick}
-      />
-      <Footer />
-      <PopupWithForm
-          name='add-card'
-          title='Новое место'
-          textButton='Создать'
-          isOpen={isAddPlacePopupOpen}
-          onClose={closeAllPopups}
-      >
-          <div className="popup__container-input">
-              <input
-                  id="name"
-                  className="popup__input popup__input_type_name"
-                  type="text"
-                  name="name"
-                  placeholder="Название"
-                  required
-                  minLength="2"
-                  maxLength="30"
-              />
-              <span className="error-class popup__input-error-name"></span>
-          </div>
-          <div className="popup__container-input">
-              <input
-                  id="link"
-                  className="popup__input popup__input_type_link"
-                  type="url"
-                  name="link"
-                  placeholder="Ссылка на картинку"
-                  required
-              />
-              <span className="error-class popup__input-error-link"></span>
-          </div>
-      </PopupWithForm>
-      <PopupWithForm
-          name='change-avatar'
-          title='Обновить аватар'
-          textButton='Сохранить'
-          isOpen={isEditAvatarPopupOpen}
-          onClose={closeAllPopups}
-      >
-          <div className="popup__container-input">
-              <input
-                  id="avatar"
-                  className="popup__input popup__input_type_avatar"
-                  type="url"
-                  name="avatar"
-                  placeholder="Ссылка на картинку"
-                  required
-              />
-              <span className="error-class popup__input-error-avatar"></span>
-          </div>
-      </PopupWithForm>
-      <PopupWithForm
-          name='profile'
-          title='Редактировать профиль'
-          textButton='Сохранить'
-          isOpen={isEditProfilePopupOpen}
-          onClose={closeAllPopups}
-      >
-          <div className="popup__container-input">
-              <input
-                  id="title"
-                  className="popup__input popup__input_type_title"
-                  type="text"
-                  name="name"
-                  placeholder="Имя"
-                  required minLength="2"
-                  maxLength="40"
-              />
-              <span className="error-class popup__input-error-title"></span>
-          </div>
-          <div className="popup__container-input">
-              <input
-                  id="job"
-                  className="popup__input popup__input_type_job"
-                  type="text"
-                  name="about"
-                  placeholder="О себе"
-                  required
-                  minLength="2"
-                  maxLength="200"
-              />
-              <span className="error-class popup__input-error-job"></span>
-          </div>
-      </PopupWithForm>
-      <ImagePopup cardData={selectedCard} onClose={closeAllPopups}/>
-    </div>
+      <CurrentUserContext.Provider value={currentUser}>
+        <div className="page__container">
+          <Header
+              isLoggedIn={isLoggedIn}
+              email={email}
+              handleSignOut={handleSignOut}
+              path={pathname}
+          />
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <ProtectedRoute
+                            element={Main}
+                            isLoggedIn={isLoggedIn}
+                            handleEditAvatarClick={handleEditAvatarClick}
+                            handleAddPlaceClick={handleAddPlaceClick}
+                            handleEditProfileClick={handleEditProfileClick}
+                            onCardClick={handleCardClick}
+                            onCardLike={handleCardLike}
+                            onCardDelete={handleDeleteCard}
+                            cards={cards}
+                            email={email}
+                        />
+                    }
+                />
+                <Route
+                    path="/signin"
+                    element={
+                        <Login
+                            title="Вход"
+                            buttonText="Войти"
+                            onSubmit={handleLogin}
+                        />
+                    }
+                />
+                <Route
+                    path="/signup"
+                    element={
+                        <Register
+                            title="Регистрация"
+                            buttonText="Зарегистрироваться"
+                            onSubmit={handleRegistration}
+                        />
+                    }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          <Footer />
+          <AddPlacePopup
+              onClose={closeAllPopups}
+              isOpen={isAddPlacePopupOpen}
+              onAddCard={handleAddCard}
+          />
+          <EditAvatarPopup
+              isOpen={isEditAvatarPopupOpen}
+              onClose={closeAllPopups}
+              onUpdateAvatar={handleUpdateAvatar}
+          />
+          <EditProfilePopup
+              isOpen={isEditProfilePopupOpen}
+              onClose={closeAllPopups}
+              onUpdateUser={handleUpdateUser}
+          />
+          <ImagePopup cardData={selectedCard} onClose={closeAllPopups}/>
+            <InfoTooltip
+                onClose={closeAllPopups}
+                isOpen={isInfoToolTipOpen}
+                isSuccessful={isSuccessful}
+                path={pathname}
+                navigate={navigate}
+            />
+        </div>
+      </CurrentUserContext.Provider>
   );
 }
 

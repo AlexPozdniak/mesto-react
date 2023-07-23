@@ -1,9 +1,14 @@
-function Card({ cardData, onCardClick }) {
-    const { name, link, likes } = cardData;
+function Card({ cardData, onCardClick, onCardLike, onCardDelete, currentUserId }) {
+    const { name, link, likes, _id: cardId } = cardData;
+    const isOwn = cardData.owner._id === currentUserId;
+    const isLiked = cardData.likes.some((el) => el._id === currentUserId);
+    const likeButtonClassName = `elements__icon ${
+        isLiked ? "elements__icon-active" : ""
+    }`;
 
     return(
         <li className="elements__list-item">
-            <button className="elements__trash" type="button" />
+            {isOwn && <button className="elements__trash" type="button" onClick={() => onCardDelete(cardId)}/>}
             <img
                 className="elements__picture"
                 alt={name}
@@ -13,7 +18,11 @@ function Card({ cardData, onCardClick }) {
             <div className="elements__container">
                 <h2 className="elements__text">{name}</h2>
                 <div className="elements__like-container">
-                    <button className="elements__icon" type="button" />
+                    <button
+                        className={likeButtonClassName}
+                        type="button"
+                        onClick={() => onCardLike(cardId, isLiked)}
+                    />
                     <span className="elements__counter">{likes.length}</span>
                 </div>
             </div>
