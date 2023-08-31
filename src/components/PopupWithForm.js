@@ -5,7 +5,10 @@ function PopupWithForm({
    textButton,
    isOpen,
    onClose,
+<<<<<<< HEAD
    onSubmit
+=======
+>>>>>>> 947eb918df43af0a39f6361e9c1c6cad43d341ad
 }) {
     return (
         <div className={`popup popup_type_${name}` + (isOpen && ' popup_opened')}>
